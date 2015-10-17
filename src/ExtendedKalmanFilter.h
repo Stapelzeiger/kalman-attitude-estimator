@@ -18,6 +18,11 @@ class ExtendedKalmanFilter
 
     typedef void (*measurement_pred_jacobian_fn)(const Eigen::VectorXf &state,
                                                  Eigen::MatrixXf &out_jacobian);
+
+    state_prop_fn f;
+    state_prop_jacobian_fn F;
+    measurement_pred_fn h;
+    measurement_pred_jacobian_fn H;
 public:
     ExtendedKalmanFilter(unsigned int dimension,
                          state_prop_fn f,

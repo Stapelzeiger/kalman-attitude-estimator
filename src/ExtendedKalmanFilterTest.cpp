@@ -38,19 +38,33 @@ void kalman_measurement_pred_jacobian(const Eigen::VectorXf &state,
 
 
 
-class VectorXfComparator : public MockNamedValueComparator
+// class VectorXfComparator : public MockNamedValueComparator
+// {
+// public:
+//     virtual bool isEqual(void* object1, void* object2)
+//     {
+//         return object1 == object2;
+//     }
+//     virtual SimpleString valueToString(void* object)
+//     {
+//         return StringFrom(object);
+//     }
+// };
+
+class MyTypeComparator : public MockNamedValueComparator
 {
 public:
-    virtual bool isEqual(void* object1, void* object2)
+    virtual bool isEqual(const void* object1, const void* object2)
     {
-        return object1 == object2;
+        return *(const Eigen::VectorXf*)object1 == *(const Eigen::VectorXf*)object2;
     }
-    virtual SimpleString valueToString(void* object)
+    virtual SimpleString valueToString(const void* object)
     {
-        return StringFrom(object);
+        ostringstream s;
+        s << "hello" << *(const Eigen::VectorXf*)object;
+        return StringFrom(s.str());
     }
 };
-
 
 TEST_GROUP(ExtendedKalmanFilterTest)
 {
@@ -68,18 +82,34 @@ TEST_GROUP(ExtendedKalmanFilterTest)
 
     void teardown(void)
     {
+        mock().clear();
+        mock().removeAllComparatorsAndCopiers();
         delete ekf;
     }
 };
 
 TEST(ExtendedKalmanFilterTest, StatePropagationCalled)
 {
+    MyTypeComparator comparator;
+    mock().installComparator("VectorXf", comparator);
+    // VectorXfComparator mock_comp_VectorXf;
+    // mock().installComparator("VectorXf", mock_comp_VectorXf);
+
+    Eigen::VectorXf initial_state_vect(3);
+    initial_state_vect << 1, 2, 3;
     Eigen::VectorXf u(2);
-    u << 1,2;
+    u << 10,20;
+    Eigen::VectorXf u_cpy(2);
+    u_cpy = u;
     Eigen::MatrixXf Q(2,2);
     Q << 1, 0,
          0, 1;
 
+    mock().expectOneCall("kalman_state_prop")
+        .withParameterOfType("VectorXf", "state", (void*)&u_cpy)
+        .withParameterOfType("VectorXf", "control", (void*)&u);
     ekf->state_propagation(u, Q);
+
+    mock().checkExpectations();
 }
 
