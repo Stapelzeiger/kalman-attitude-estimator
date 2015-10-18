@@ -14,7 +14,9 @@ void ekf_predict(Eigen::Matrix<scalar, state_dim, 1> &state,
                                                 Eigen::Matrix<scalar, state_dim, state_dim> &out_jacobian)
                  )
 {
-
+    Eigen::Matrix<scalar, state_dim, state_dim> F;
+    state_prop_jacobian_fn(state, control, F);
+    state_prop_fn(state, control);
 }
 
 
