@@ -40,36 +40,21 @@ TEST_GROUP(TemplateEKFPredict)
 };
 
 
-TEST(TemplateEKFPredict, Simple)
-{
-    Vector3f x(3);
-    Matrix3f P(3, 3);
-    Matrix<float, 1, 1> u(1);
-
-    auto f = [](Eigen::Matrix<float, 3, 1> &x,
-                const Eigen::Matrix<float, 1, 1> &u) {};
-    auto F = [](const Eigen::Matrix<float, 3, 1> &state,
-                const Eigen::Matrix<float, 1, 1> &control,
-                Eigen::Matrix<float, 3, 3> &out_jacobian) {};
-    ekf_predict<float, 3, 1>(x, P, u, f, F);
-}
-
-
-TEST(TemplateEKFPredict, StatePropagationCalled)
+TEST(TemplateEKFPredict, StatePropagationAndJacobianCalled)
 {
     EigenMatrixComparator<float, 3, 1> V3fcomparator;
     mock().installComparator("Vector3f", V3fcomparator);
     EigenMatrixComparator<float, 1, 1> V1fcomparator;
     mock().installComparator("Vector1f", V1fcomparator);
 
-    Vector3f x(3);
+    Vector3f x;
     x << 1, 2, 3;
-    Matrix3f P(3, 3);
-    P << 1, 0, 0,
-         0, 1, 0,
-         0, 0, 1;
-    Matrix<float, 1, 1> u(1);
+    Matrix<float, 1, 1> u;
     u << 4;
+    Matrix3f P;
+    P.setIdentity();
+    Matrix3f Q;
+    Q.setIdentity();
     auto f = [](Eigen::Matrix<float, 3, 1> &state,
                 const Eigen::Matrix<float, 1, 1> &control)
         {
@@ -93,7 +78,51 @@ TEST(TemplateEKFPredict, StatePropagationCalled)
         .withParameterOfType("Vector3f", "state", (void*)&x)
         .withParameterOfType("Vector1f", "control", (void*)&u);
 
-    ekf_predict<float, 3, 1>(x, P, u, f, F);
+    ekf_predict<float, 3, 1>(x, P, u, Q, f, F);
 
     mock().checkExpectations();
 }
+
+
+TEST(TemplateEKFPredict, PredictWorks)
+{
+    Vector3f x;
+    x << 1, 2, 3;
+    Matrix3f P0(3, 3);
+    P0.setIdentity();
+    Matrix3f P = P0;
+    Matrix<float, 1, 1> u(1);
+    u << 0;
+    Matrix3f F0;
+    F0 << 0.9, 1, 0,
+          0, 0.9, 1,
+          0, 0, 0.9;
+    Matrix3f Q;
+    Q = Q.setIdentity() * 0.1;
+    Vector3f x1;
+    x1 << 4, 5, 6;
+    auto f = [](Eigen::Matrix<float, 3, 1> &state,
+                const Eigen::Matrix<float, 1, 1> &control)
+        {
+            mock().actualCall("f").withOutputParameter("new_state", &state);
+        };
+    auto F = [](const Eigen::Matrix<float, 3, 1> &state,
+                const Eigen::Matrix<float, 1, 1> &control,
+                Eigen::Matrix<float, 3, 3> &out_jacobian)
+        {
+            mock().actualCall("F").withOutputParameter("jacobian", &out_jacobian);
+        };
+
+    mock().expectOneCall("f")
+        .withOutputParameterReturning("new_state", &x1, sizeof(x1));
+    mock().expectOneCall("F")
+        .withOutputParameterReturning("jacobian", &F0, sizeof(F0));
+
+    ekf_predict<float, 3, 1>(x, P, u, Q, f, F);
+
+    CHECK_TRUE(x.isApprox(x1));
+    CHECK_TRUE(P.isApprox(F0 * P0 * F0.transpose() + Q));
+
+    mock().checkExpectations();
+}
+
