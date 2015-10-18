@@ -24,7 +24,7 @@ public:
 };
 
 
-TEST_GROUP(TemplateEKFPredict)
+TEST_GROUP(TemplateEKF)
 {
     void setup(void)
     {
@@ -40,7 +40,7 @@ TEST_GROUP(TemplateEKFPredict)
 };
 
 
-TEST(TemplateEKFPredict, StatePropagationAndJacobianCalled)
+TEST(TemplateEKF, StatePropagationAndJacobianCalled)
 {
     EigenMatrixComparator<float, 3, 1> V3fcomparator;
     mock().installComparator("Vector3f", V3fcomparator);
@@ -84,7 +84,7 @@ TEST(TemplateEKFPredict, StatePropagationAndJacobianCalled)
 }
 
 
-TEST(TemplateEKFPredict, PredictWorks)
+TEST(TemplateEKF, PredictWorks)
 {
     Vector3f x;
     x << 1, 2, 3;
@@ -126,3 +126,38 @@ TEST(TemplateEKFPredict, PredictWorks)
     mock().checkExpectations();
 }
 
+TEST(TemplateEKF, MeasurePredictionAndJacobianCalled)
+{
+    EigenMatrixComparator<float, 3, 1> V3fcomparator;
+    mock().installComparator("Vector3f", V3fcomparator);
+
+    Vector3f x;
+    x << 1, 2, 3;
+    Matrix3f P0(3, 3);
+    P0.setIdentity();
+    Vector2f z;
+    Matrix2f R;
+
+    auto h = [](const Eigen::Matrix<float, 3, 1> &state,
+                Eigen::Matrix<float, 2, 1> &measurement_pred)
+        {
+            mock().actualCall("h")
+                .withParameterOfType("Vector3f", "state", (void*)&state);
+        };
+    auto H = [](const Eigen::Matrix<float, 3, 1> &state,
+                Eigen::Matrix<float, 2, 3> &out_jacobian)
+        {
+            mock().actualCall("H")
+                .withParameterOfType("Vector3f", "state", (void*)&state);
+        };
+
+    mock().expectOneCall("h")
+        .withParameterOfType("Vector3f", "state", (void*)&x);
+    mock().expectOneCall("H")
+        .withParameterOfType("Vector3f", "state", (void*)&x);
+
+
+    ekf_measure<float, 3, 2>(x, P0, z, R, h, H);
+
+    mock().checkExpectations();
+}

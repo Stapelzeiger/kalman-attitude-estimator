@@ -33,7 +33,10 @@ void ekf_measure(Eigen::Matrix<scalar, state_dim, 1> &state,
                                                       Eigen::Matrix<scalar, measurement_dim, state_dim> &out_jacobian)
                  )
 {
-    
+    Eigen::Matrix<scalar, measurement_dim, 1> y;
+    Eigen::Matrix<scalar, measurement_dim, state_dim> H;
+    measurement_pred_fn(state, y);
+    measurement_pred_jacobian_fn(state, H);
 }
 
 #endif /* TEMPLATE_KALMAN_H */
