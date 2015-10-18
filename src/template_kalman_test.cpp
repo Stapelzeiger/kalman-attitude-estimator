@@ -13,7 +13,7 @@ class EigenMatrixComparator : public MockNamedValueComparator
 public:
     virtual bool isEqual(const void* matrix1, const void* matrix2)
     {
-        return *(const Eigen::Matrix<scalar, rows, cols>*)matrix1 == *(const Eigen::Matrix<scalar, rows, cols>*)matrix2;
+        return ((const Eigen::Matrix<scalar, rows, cols>*)matrix1)->isApprox(*(const Eigen::Matrix<scalar, rows, cols>*)matrix2);
     }
     virtual SimpleString valueToString(const void* matrix)
     {
@@ -97,5 +97,3 @@ TEST(TemplateEKFPredict, StatePropagationCalled)
 
     mock().checkExpectations();
 }
-
-
