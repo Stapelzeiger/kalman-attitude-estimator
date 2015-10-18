@@ -88,10 +88,10 @@ TEST(TemplateEKF, PredictWorks)
 {
     Vector3f x;
     x << 1, 2, 3;
-    Matrix3f P0(3, 3);
+    Matrix3f P0;
     P0.setIdentity();
     Matrix3f P = P0;
-    Matrix<float, 1, 1> u(1);
+    Matrix<float, 1, 1> u;
     u << 0;
     Matrix3f F0;
     F0 << 0.9, 1, 0,
@@ -133,8 +133,8 @@ TEST(TemplateEKF, MeasurePredictionAndJacobianCalled)
 
     Vector3f x;
     x << 1, 2, 3;
-    Matrix3f P0(3, 3);
-    P0.setIdentity();
+    Matrix3f P;
+    P.setIdentity();
     Vector2f z;
     Matrix2f R;
 
@@ -157,7 +157,61 @@ TEST(TemplateEKF, MeasurePredictionAndJacobianCalled)
         .withParameterOfType("Vector3f", "state", (void*)&x);
 
 
-    ekf_measure<float, 3, 2>(x, P0, z, R, h, H);
+    ekf_measure<float, 3, 2>(x, P, z, R, h, H);
 
     mock().checkExpectations();
+}
+
+TEST(TemplateEKF, MeasureWorks)
+{
+    Vector3f x0;
+    x0 << 1, 2, 3;
+    Vector3f x = x0;
+    Matrix3f P0;
+    P0.setIdentity();
+    Matrix3f P = P0;
+    Vector2f z;
+    z << 2, 3;
+    Vector2f h_x;
+    h_x << 1, 2;
+    Matrix<float, 2, 3> H_x;
+    H_x << 1, 0.1, 0,
+           0, 0.1, 1;
+    Matrix2f R;
+    R = R.setIdentity() * 0.1;
+
+    auto h = [](const Eigen::Matrix<float, 3, 1> &state,
+                Eigen::Matrix<float, 2, 1> &measurement_pred)
+        {
+            mock().actualCall("h").withOutputParameter("h(x)", &measurement_pred);
+        };
+    auto H = [](const Eigen::Matrix<float, 3, 1> &state,
+                Eigen::Matrix<float, 2, 3> &out_jacobian)
+        {
+            mock().actualCall("H").withOutputParameter("jacobian", &out_jacobian);
+        };
+
+    mock().expectOneCall("h")
+        .withOutputParameterReturning("h(x)", &h_x, sizeof(h_x));
+    mock().expectOneCall("H")
+        .withOutputParameterReturning("jacobian", &H_x, sizeof(H_x));
+
+
+    ekf_measure<float, 3, 2>(x, P, z, R, h, H);
+
+
+    Vector2f y = z - h_x;
+    Matrix2f S = H_x * P0 * H_x.transpose() + R;
+    Matrix<float, 3, 2> K = P0 * H_x.transpose() * S.inverse();
+    Matrix3f I;
+    I.setIdentity();
+    CHECK_TRUE(x.isApprox(x0 + K * y));
+    CHECK_TRUE(P.isApprox((I - K * H_x) * P0));
+
+    mock().checkExpectations();
+}
+
+IGNORE_TEST(TemplateEKF, HanldeNonInvertibleCovariances)
+{
+    FAIL("TODO: handling of non invertible covariance matrices (S matrix) are not implemented yet!");
 }
