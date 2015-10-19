@@ -94,10 +94,22 @@ display("H", H)
 # h_out_var = cg.OutputArgument()
 # h_fn = cg.Routine("h", )
 h_sym = sp.MatrixSymbol('h', 3, 1)
-q_sym = sp.MatrixSymbol('q', 3, 1)
+q_sym = sp.MatrixSymbol('q', 4, 1)
 print(cg.InputArgument(q0, datatype=cg.DataType("float", "", "float", "")).name)
 argseq = [h_sym, q_sym, q0, q1, q2, q3]
 
 [(c_name, c_code), (h_name, c_header)] = cg.codegen(("fn", sp.Eq(h_sym, sp.Matrix([0, 0, q_sym[1]]))), "C", "test", argument_sequence=argseq)
+print(c_code)
+
+
+cfloat_type = cg.DataType("float", "", "float", "")
+cconstfloat_type = cg.DataType("const float", "", "float", "")
+return_val = []
+arg_list = [cg.InputArgument(q_sym, dimensions=(3, 1), datatype=cconstfloat_type),
+            cg.OutputArgument(h_sym, h_sym, sp.Matrix([0, 0, q_sym[1]]), dimensions=(3, 1), datatype=cfloat_type)]
+local_vars = []
+routines = [cg.Routine("fn", arg_list, return_val, local_vars)]
+code_gen = cg.get_code_generator("C", "projectname")
+[(c_name, c_code), (h_name, c_header)] = code_gen.write(routines, "prefix")
 print(c_code)
 # write_c(H)
