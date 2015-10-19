@@ -22,16 +22,27 @@ model:
 def display(var, val):
     print()
     print(var, "=")
-    # sp.pprint(val)
-    res_ = sp.symbols("res_", real=True)
-    # sp.printing.print_ccode(res_ = val)
     print(val)
 
-def write_c(val):
+def generate_c_code(fn, expr, use_single_float=True):
+
+    def convert_to_float(c_code):
+        c_code = c_code.replace('double', 'float')
+        c_code = c_code.replace('pow', 'powf')
+        return c_code
+
     from sympy.utilities.codegen import codegen
     [(c_name, c_code), (h_name, c_header)] = codegen(
-        ("f", val), "C", "test", header=False, empty=False)
-    print(c_code)
+        (fn, expr), "C", "", header=False, empty=False)
+
+    c_code = filter(lambda line: not line.startswith('#include'), c_code.split('\n'))
+    c_code = '\n'.join(c_code)
+    c_code = c_code.replace('double *in', 'const double *in')
+    if use_single_float:
+        c_code = convert_to_float(c_code)
+    c_code = 'static ' + c_code
+    return c_code
+
 
 def rotate_by_quaternion(v, q):
     qv = sp.Matrix([0]).col_join(v)
@@ -53,6 +64,9 @@ def quatmult(q1, q2):
     q[3] = q1[0]*q2[3] + q1[1]*q2[2] - q1[2]*q2[1] + q1[3]*q2[0]
     return q
 
+
+delta_t = sp.symbols("delta_t", real=True)
+
 q0, q1, q2, q3 = sp.symbols("q0 q1 q2 q3", real=True)
 attitude = sp.Matrix([[q0], [q1], [q2], [q3]])
 
@@ -65,6 +79,7 @@ display("x", x)
 # gyro
 gx, gy, gz = sp.symbols("gx gy gz", real=True)
 gyro = sp.Matrix([[gx], [gy], [gz]])
+u = gyro
 
 rate = gyro - gyro_bias
 display("rate", rate)
@@ -79,7 +94,11 @@ x_dot = sp.simplify(x_dot)
 
 display("x_dot", x_dot)
 
-display("jacobian", x_dot.jacobian(x))
+f = x_dot * delta_t + x
+F = f.jacobian(x)
+
+display("f", f)
+display("F", F)
 
 
 expected_meas = sp.Matrix([0, 0, 9.81])
@@ -87,29 +106,39 @@ h = rotate_by_quaternion(expected_meas, quatconj(attitude))
 H = h.jacobian(x)
 
 display("h", h)
-
 display("H", H)
 
-# x_var = cg.InputArgument(x, datatype='float')
-# h_out_var = cg.OutputArgument()
-# h_fn = cg.Routine("h", )
-h_sym = sp.MatrixSymbol('h', 3, 1)
-q_sym = sp.MatrixSymbol('q', 4, 1)
-print(cg.InputArgument(q0, datatype=cg.DataType("float", "", "float", "")).name)
-argseq = [h_sym, q_sym, q0, q1, q2, q3]
 
-[(c_name, c_code), (h_name, c_header)] = cg.codegen(("fn", sp.Eq(h_sym, sp.Matrix([0, 0, q_sym[1]]))), "C", "test", argument_sequence=argseq)
-print(c_code)
+# C matrix access is in row-major order
+# [source: sympy/printing/ccode.py:215, _print_MatrixElement()]
+
+out_sym = sp.MatrixSymbol('h_out', len(h), 1)
+x_sym = sp.MatrixSymbol('in1_x', len(x), 1)
+x_subs_tab = [(elem_sym, x_sym[i, 0]) for i, elem_sym in enumerate(x)]
+u_sym = sp.MatrixSymbol('in2_u', len(u), 1)
+u_subs_tab = [(elem_sym, u_sym[i, 0]) for i, elem_sym in enumerate(u)]
+deltat_sym = sp.symbols('in0_delta_t')
+subs_tab = x_subs_tab + u_subs_tab + [(delta_t, deltat_sym)]
 
 
 cfloat_type = cg.DataType("float", "", "float", "")
 cconstfloat_type = cg.DataType("const float", "", "float", "")
-return_val = []
-arg_list = [cg.InputArgument(q_sym, dimensions=(3, 1), datatype=cconstfloat_type),
-            cg.OutputArgument(h_sym, h_sym, sp.Matrix([0, 0, q_sym[1]]), dimensions=(3, 1), datatype=cfloat_type)]
-local_vars = []
-routines = [cg.Routine("fn", arg_list, return_val, local_vars)]
+no_return_val = []
+no_local_vars = []
+h_arg_list = [cg.InputArgument(x_sym, dimensions=(3, 1), datatype=cconstfloat_type),
+              cg.OutputArgument(out_sym, out_sym, h.subs(x_subs_tab), dimensions=(3, 1), datatype=cfloat_type)]
+routines = [cg.Routine("h", h_arg_list, no_return_val, no_local_vars)]
 code_gen = cg.get_code_generator("C", "projectname")
-[(c_name, c_code), (h_name, c_header)] = code_gen.write(routines, "prefix")
-print(c_code)
-# write_c(H)
+[(c_name, c_code), (h_name, c_header)] = code_gen.write(routines, "prefix", header=False)
+# print(c_code)
+
+
+filename = 'simple_ekf'
+# writing C code the easy way
+c_file = open(filename + '.h', 'w+')
+c_file.write('// This file has been generated from {}\n'.format(__file__))
+c_file.write('// DO NOT EDIT!\n\n')
+c_file.write(generate_c_code('H', H.subs(subs_tab)))
+c_file.write(generate_c_code('h', h.subs(subs_tab)))
+c_file.write(generate_c_code('f', f.subs(subs_tab)))
+c_file.write(generate_c_code('F', F.subs(subs_tab)))
