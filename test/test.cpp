@@ -16,6 +16,7 @@ int main(int argc, char const *argv[])
 
     StateEstimator kalman;
     sleep(3);
+    float prev_timestamp = 0;
     int i = 1000;
     while (1) {
         zmq::message_t update;
@@ -76,7 +77,14 @@ int main(int argc, char const *argv[])
                 acc[1] = acc[1]/1;
                 acc[2] = acc[2]/1;
 
-                kalman.update_imu(gyro, acc, timestamp);
+                if (prev_timestamp == 0) {
+                    prev_timestamp = timestamp;
+                    continue;
+                }
+                float delta_t = timestamp - prev_timestamp;
+                prev_timestamp = timestamp;
+
+                kalman.update_imu(gyro, acc, delta_t);
 
                 std::cout << kalman.get_attitude().w() << ", "
                         << kalman.get_attitude().x() << ", "
