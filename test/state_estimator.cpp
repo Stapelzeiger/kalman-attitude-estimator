@@ -20,24 +20,22 @@ StateEstimator::~StateEstimator()
 
 }
 
-#define DELTA_T 0.001f
-
 void StateEstimator::update_imu(const float *gyro, const float *acc, float delta_t)
 {
     Eigen::Map<const Eigen::Vector3f> u(gyro);
     Eigen::Map<const Eigen::Vector3f> z(acc);
 
-    auto f = [](Eigen::Matrix<float, simple_ekf::STATE_DIM, 1> &state,
+    auto f = [delta_t](Eigen::Matrix<float, simple_ekf::STATE_DIM, 1> &state,
                 const Eigen::Matrix<float, simple_ekf::CONTROL_DIM, 1> &control)
         {
             Eigen::Matrix<float, simple_ekf::STATE_DIM, 1> state_cpy = state;
-            simple_ekf::f(DELTA_T, state_cpy.data(), control.data(), state.data());
+            simple_ekf::f(delta_t, state_cpy.data(), control.data(), state.data());
         };
-    auto F = [](const Eigen::Matrix<float, simple_ekf::STATE_DIM, 1> &state,
+    auto F = [delta_t](const Eigen::Matrix<float, simple_ekf::STATE_DIM, 1> &state,
                 const Eigen::Matrix<float, simple_ekf::CONTROL_DIM, 1> &control,
                 Eigen::Matrix<float, simple_ekf::STATE_DIM, simple_ekf::STATE_DIM> &out_jacobian)
         {
-            simple_ekf::F(DELTA_T, state.data(), control.data(), out_jacobian.data());
+            simple_ekf::F(delta_t, state.data(), control.data(), out_jacobian.data());
         };
     auto h = [](const Eigen::Matrix<float, simple_ekf::STATE_DIM, 1> &state,
                 Eigen::Matrix<float, simple_ekf::MEASURE_DIM, 1> &pred)
