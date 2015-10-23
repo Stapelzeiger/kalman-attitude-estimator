@@ -14,7 +14,7 @@ void kalman_state_prop(const Eigen::VectorXf &state,
     mock().actualCall("kalman_state_prop")
         .withParameterOfType("VectorXf", "state", (void*)&state)
         .withParameterOfType("VectorXf", "control", (void*)&control);
-    cout << "state prop called" << endl;
+    // cout << "state prop called" << endl;
 }
 
 void kalman_state_prop_jacobian(const Eigen::VectorXf &state,

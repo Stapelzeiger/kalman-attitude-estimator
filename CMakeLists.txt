@@ -10,11 +10,13 @@ include_directories(lib)
 include_directories(lib/eigen)
 include_directories(lib/cppzmq)
 
-file(GLOB_RECURSE src src/*.cpp tmp/*.cpp)
+file(GLOB_RECURSE src src/*.cpp)
 
 add_executable(
     tests
     ${src}
+    test/state_estimator.cpp
+    test/state_estimator_test.cpp
     )
 
 target_link_libraries(

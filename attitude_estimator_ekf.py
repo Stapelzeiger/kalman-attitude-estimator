@@ -119,6 +119,10 @@ display("H", H)
 
 # C matrix access is in row-major order
 # [source: sympy/printing/ccode.py:215, _print_MatrixElement()]
+# Since Eigen uses column-major by default we transpose the matrices before
+# generating the C code
+H = H.transpose()
+F = F.transpose()
 
 x_sym = sp.MatrixSymbol('in1_x', len(x), 1)
 x_subs_tab = [(elem_sym, x_sym[i, 0]) for i, elem_sym in enumerate(x)]
@@ -140,7 +144,7 @@ f_arg_list = [cg.InputArgument(deltat_sym),
               cg.InputArgument(u_sym, dimensions=u_sym.shape),
               cg.OutputArgument(f_out_sym, f_out_sym, f.subs(subs_tab), dimensions=f_out_sym.shape)]
 
-F_out_sym = sp.MatrixSymbol('F_out', len(x), len(x))
+F_out_sym = sp.MatrixSymbol('F_out', F.shape[0], F.shape[1])
 F_arg_list = [cg.InputArgument(deltat_sym),
               cg.InputArgument(x_sym, dimensions=x_sym.shape),
               cg.InputArgument(u_sym, dimensions=u_sym.shape),
@@ -150,7 +154,7 @@ h_out_sym = sp.MatrixSymbol('h_out', len(h), 1)
 h_arg_list = [cg.InputArgument(x_sym, dimensions=x_sym.shape),
               cg.OutputArgument(h_out_sym, h_out_sym, h.subs(subs_tab), dimensions=h_out_sym.shape)]
 
-H_out_sym = sp.MatrixSymbol('H_out', len(h), len(x))
+H_out_sym = sp.MatrixSymbol('H_out', H.shape[0], H.shape[1])
 H_arg_list = [cg.InputArgument(x_sym, dimensions=x_sym.shape),
               cg.OutputArgument(H_out_sym, H_out_sym, H.subs(subs_tab), dimensions=H_out_sym.shape)]
 

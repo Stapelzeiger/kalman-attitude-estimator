@@ -9,8 +9,10 @@ namespace simple_ekf {
 StateEstimator::StateEstimator()
 {
     this->P.setIdentity();
-    this->P *= 0.0001;
+    this->P *= 0.001;
     this->reset();
+    this->Q = this->Q.setIdentity() * 0.0001;
+    this->R = this->R.setIdentity() * 100;
 }
 
 StateEstimator::~StateEstimator()
@@ -22,11 +24,6 @@ StateEstimator::~StateEstimator()
 
 void StateEstimator::update_imu(const float *gyro, const float *acc, float delta_t)
 {
-    // Eigen::Matrix3f Q(Eigen::Vector3f(0.1,0.1,0.1,0.1, 0.01, 0.01, 0.01).asDiagonal());
-    Eigen::Matrix<float, simple_ekf::STATE_DIM, simple_ekf::STATE_DIM> Q;
-    Q = Q.setIdentity() * 0.0001;
-    Eigen::Matrix<float, simple_ekf::MEASURE_DIM, simple_ekf::MEASURE_DIM> R;
-    R = R.setIdentity() * 10000;
     Eigen::Map<const Eigen::Vector3f> u(gyro);
     Eigen::Map<const Eigen::Vector3f> z(acc);
 
@@ -60,9 +57,9 @@ void StateEstimator::update_imu(const float *gyro, const float *acc, float delta
     //           << z_est[1] << ", "
     //           << z_est[2] << std::endl;
 
-    ekf_predict<float, simple_ekf::STATE_DIM, simple_ekf::CONTROL_DIM>(this->x, this->P, u, Q, f, F);
+    ekf_predict<float, simple_ekf::STATE_DIM, simple_ekf::CONTROL_DIM>(this->x, this->P, u, this->Q, f, F);
     this->x.topLeftCorner(4, 1) = this->x.topLeftCorner(4, 1).normalized();
-    ekf_measure<float, simple_ekf::STATE_DIM, simple_ekf::MEASURE_DIM>(this->x, this->P, z, R, h, H);
+    ekf_measure<float, simple_ekf::STATE_DIM, simple_ekf::MEASURE_DIM>(this->x, this->P, z, this->R, h, H);
     this->x.topLeftCorner(4, 1) = this->x.topLeftCorner(4, 1).normalized();
 }
 

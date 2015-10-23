@@ -9,6 +9,8 @@ class StateEstimator
 public:
     Eigen::Matrix<float, _simple_ekf::STATE_DIM, 1> x;
     Eigen::Matrix<float, _simple_ekf::STATE_DIM, _simple_ekf::STATE_DIM> P;
+    Eigen::Matrix<float, _simple_ekf::STATE_DIM, _simple_ekf::STATE_DIM> Q;
+    Eigen::Matrix<float, _simple_ekf::MEASURE_DIM, _simple_ekf::MEASURE_DIM> R;
 
     StateEstimator();
     ~StateEstimator();
