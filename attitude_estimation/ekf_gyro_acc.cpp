@@ -11,8 +11,8 @@ StateEstimator::StateEstimator()
     this->P.setIdentity();
     this->P *= 0.001;
     this->reset();
-    this->Q = this->Q.setIdentity() * 0.0001;
-    this->R = this->R.setIdentity() * 100;
+    this->Q = this->Q.setIdentity() * 0.000001;
+    this->R = this->R.setIdentity() * 1000;
 }
 
 StateEstimator::~StateEstimator()
