@@ -1,7 +1,7 @@
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 namespace _simple_ekf {
-    #include "../simple_ekf.h"
+    #include "code_gen/ekf_gyro_acc.h"
 }
 
 class StateEstimator

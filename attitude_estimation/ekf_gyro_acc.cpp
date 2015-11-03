@@ -1,9 +1,9 @@
 #include <iostream>
-#include "state_estimator.h"
+#include "ekf_gyro_acc.h"
 #include "template_kalman.h"
 
 namespace simple_ekf {
-#include "../simple_ekf.h"
+    #include "code_gen/ekf_gyro_acc.h"
 }
 
 StateEstimator::StateEstimator()
@@ -29,13 +29,13 @@ void StateEstimator::update_imu(const float *gyro, const float *acc, float delta
                 const Eigen::Matrix<float, simple_ekf::CONTROL_DIM, 1> &control)
         {
             Eigen::Matrix<float, simple_ekf::STATE_DIM, 1> state_cpy = state;
-            simple_ekf::f(delta_t, state_cpy.data(), control.data(), state.data());
+            simple_ekf::f(state_cpy.data(), control.data(), delta_t, state.data());
         };
     auto F = [delta_t](const Eigen::Matrix<float, simple_ekf::STATE_DIM, 1> &state,
                 const Eigen::Matrix<float, simple_ekf::CONTROL_DIM, 1> &control,
                 Eigen::Matrix<float, simple_ekf::STATE_DIM, simple_ekf::STATE_DIM> &out_jacobian)
         {
-            simple_ekf::F(delta_t, state.data(), control.data(), out_jacobian.data());
+            simple_ekf::F(state.data(), control.data(), delta_t, out_jacobian.data());
         };
     auto h = [](const Eigen::Matrix<float, simple_ekf::STATE_DIM, 1> &state,
                 Eigen::Matrix<float, simple_ekf::MEASURE_DIM, 1> &pred)
