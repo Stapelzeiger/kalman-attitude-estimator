@@ -70,7 +70,7 @@ def quatmult(q1, q2):
     return q
 
 
-delta_t = sp.symbols("delta_t", real=True)
+delta_t = sp.symbols("Delta_t", real=True)
 
 q0, q1, q2, q3 = sp.symbols("q0 q1 q2 q3", real=True)
 attitude = sp.Matrix([[q0], [q1], [q2], [q3]])
@@ -95,6 +95,7 @@ rate_quat = rate.row_insert(0, sp.Matrix([0]))
 
 attitude_dot = 1/2*quatmult(attitude, rate_quat) # quaternion kinemamtics
 gyro_bias_dot = sp.zeros(3, 1) # constant gyro bias model
+gyro_bias_dot = - gyro_bias * 0.1
 
 x_dot = attitude_dot.col_join(gyro_bias_dot)
 x_dot = attitude_dot
@@ -117,7 +118,7 @@ display("h", h)
 display("H", H)
 
 
-# C matrix access is in row-major order
+# generated C code matrix access is in row-major order
 # [source: sympy/printing/ccode.py:215, _print_MatrixElement()]
 # Since Eigen uses column-major by default we transpose the matrices before
 # generating the C code
@@ -132,8 +133,6 @@ deltat_sym = sp.symbols('in0_delta_t')
 subs_tab = x_subs_tab + u_subs_tab + [(delta_t, deltat_sym)]
 
 
-cfloat_type = cg.DataType("float", "", "float", "")
-cconstfloat_type = cg.DataType("const float", "", "float", "")
 no_return_val = []
 no_local_vars = []
 
