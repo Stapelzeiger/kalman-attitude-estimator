@@ -48,13 +48,6 @@ void StateEstimator::update_imu(const float *gyro, const float *acc, float delta
             simple_ekf::H(state.data(), out_jacobian.data());
         };
 
-
-    // float z_est[3];
-    // simple_ekf::h(this->x.data(), &z_est[0]);
-    // std::cerr << z_est[0] << ", "
-    //           << z_est[1] << ", "
-    //           << z_est[2] << std::endl;
-
     ekf_predict<float, simple_ekf::STATE_DIM, simple_ekf::CONTROL_DIM>(this->x, this->P, u, this->Q, f, F);
     this->x.topLeftCorner(4, 1) = this->x.topLeftCorner(4, 1).normalized();
     ekf_measure<float, simple_ekf::STATE_DIM, simple_ekf::MEASURE_DIM>(this->x, this->P, z, this->R, h, H);
