@@ -30,6 +30,7 @@ add_executable(
     run_ekf_zmq
     attitude_estimation/run_estimator_on_zmq.cpp
     attitude_estimation/ekf_gyro_acc.cpp
+    attitude_estimation/ekf_gyro_acc_mag.cpp
     lib/cmp/cmp.c
     lib/cmp_mem_access/cmp_mem_access.c
     )

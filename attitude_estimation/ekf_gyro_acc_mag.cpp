@@ -61,7 +61,6 @@ void EKFGyroAccMag::update_mag(const float *mag)
 {
     float mag_heading;
     ekf_mag::meas_transf(this->x[0], this->x[1], this->x[2], this->x[3], mag[0], mag[1], mag[2], &mag_heading);
-    std::cerr << "meas " << mag_heading << std::endl;
 
     Eigen::Map<const Eigen::Matrix<float, 1, 1>> z(&mag_heading);
 
