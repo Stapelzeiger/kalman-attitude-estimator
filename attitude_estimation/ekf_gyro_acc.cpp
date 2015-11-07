@@ -1,4 +1,3 @@
-#include <iostream>
 #include "ekf_gyro_acc.h"
 #include "template_kalman.h"
 
