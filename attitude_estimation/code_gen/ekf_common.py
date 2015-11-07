@@ -26,7 +26,13 @@ def quatmult(q1, q2):
 def clean_c_code(c_code, use_single_float=True):
     def convert_to_float(c_code):
         c_code = c_code.replace('double', 'float')
-        c_code = c_code.replace('pow', 'powf')
+        c_code = c_code.replace('pow(', 'powf(')
+        c_code = c_code.replace('sin(', 'sinf(')
+        c_code = c_code.replace('cos(', 'cosf(')
+        c_code = c_code.replace('tan(', 'tanf(')
+        c_code = c_code.replace('asin(', 'asinf(')
+        c_code = c_code.replace('acos(', 'acosf(')
+        c_code = c_code.replace('atan2(', 'atan2f(')
         return c_code
 
     c_code = filter(lambda line: not line.startswith('#include'), c_code.split('\n'))
