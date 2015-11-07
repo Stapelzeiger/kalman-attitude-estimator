@@ -1,11 +1,11 @@
 #include "ekf_gyro_acc.h"
 #include "template_kalman.h"
 
-namespace simple_ekf {
+namespace gyro_acc {
     #include "code_gen/ekf_gyro_acc.h"
 }
 
-StateEstimator::StateEstimator()
+EKFGyroAcc::EKFGyroAcc()
 {
     this->P.setIdentity();
     this->P *= 0.001;
@@ -14,51 +14,51 @@ StateEstimator::StateEstimator()
     this->R = this->R.setIdentity() * 1000;
 }
 
-StateEstimator::~StateEstimator()
+EKFGyroAcc::~EKFGyroAcc()
 {
 
 }
 
-void StateEstimator::update_imu(const float *gyro, const float *acc, float delta_t)
+void EKFGyroAcc::update_imu(const float *gyro, const float *acc, float delta_t)
 {
     Eigen::Map<const Eigen::Vector3f> u(gyro);
     Eigen::Map<const Eigen::Vector3f> z(acc);
 
-    auto f = [delta_t](Eigen::Matrix<float, simple_ekf::STATE_DIM, 1> &state,
-                const Eigen::Matrix<float, simple_ekf::CONTROL_DIM, 1> &control)
+    auto f = [delta_t](Eigen::Matrix<float, gyro_acc::STATE_DIM, 1> &state,
+                const Eigen::Matrix<float, gyro_acc::CONTROL_DIM, 1> &control)
         {
-            Eigen::Matrix<float, simple_ekf::STATE_DIM, 1> state_cpy = state;
-            simple_ekf::f(state_cpy.data(), control.data(), delta_t, state.data());
+            Eigen::Matrix<float, gyro_acc::STATE_DIM, 1> state_cpy = state;
+            gyro_acc::f(state_cpy.data(), control.data(), delta_t, state.data());
         };
-    auto F = [delta_t](const Eigen::Matrix<float, simple_ekf::STATE_DIM, 1> &state,
-                const Eigen::Matrix<float, simple_ekf::CONTROL_DIM, 1> &control,
-                Eigen::Matrix<float, simple_ekf::STATE_DIM, simple_ekf::STATE_DIM> &out_jacobian)
+    auto F = [delta_t](const Eigen::Matrix<float, gyro_acc::STATE_DIM, 1> &state,
+                const Eigen::Matrix<float, gyro_acc::CONTROL_DIM, 1> &control,
+                Eigen::Matrix<float, gyro_acc::STATE_DIM, gyro_acc::STATE_DIM> &out_jacobian)
         {
-            simple_ekf::F(state.data(), control.data(), delta_t, out_jacobian.data());
+            gyro_acc::F(state.data(), control.data(), delta_t, out_jacobian.data());
         };
-    auto h = [](const Eigen::Matrix<float, simple_ekf::STATE_DIM, 1> &state,
-                Eigen::Matrix<float, simple_ekf::MEASURE_DIM, 1> &pred)
+    auto h = [](const Eigen::Matrix<float, gyro_acc::STATE_DIM, 1> &state,
+                Eigen::Matrix<float, gyro_acc::MEASURE_DIM, 1> &pred)
         {
-            simple_ekf::h(state.data(), pred.data());
+            gyro_acc::h(state.data(), pred.data());
         };
-    auto H = [](const Eigen::Matrix<float, simple_ekf::STATE_DIM, 1> &state,
-                Eigen::Matrix<float, simple_ekf::MEASURE_DIM, simple_ekf::STATE_DIM> &out_jacobian)
+    auto H = [](const Eigen::Matrix<float, gyro_acc::STATE_DIM, 1> &state,
+                Eigen::Matrix<float, gyro_acc::MEASURE_DIM, gyro_acc::STATE_DIM> &out_jacobian)
         {
-            simple_ekf::H(state.data(), out_jacobian.data());
+            gyro_acc::H(state.data(), out_jacobian.data());
         };
 
-    ekf_predict<float, simple_ekf::STATE_DIM, simple_ekf::CONTROL_DIM>(this->x, this->P, u, this->Q, f, F);
+    ekf_predict<float, gyro_acc::STATE_DIM, gyro_acc::CONTROL_DIM>(this->x, this->P, u, this->Q, f, F);
     this->x.topLeftCorner(4, 1) = this->x.topLeftCorner(4, 1).normalized();
-    ekf_measure<float, simple_ekf::STATE_DIM, simple_ekf::MEASURE_DIM>(this->x, this->P, z, this->R, h, H);
+    ekf_measure<float, gyro_acc::STATE_DIM, gyro_acc::MEASURE_DIM>(this->x, this->P, z, this->R, h, H);
     this->x.topLeftCorner(4, 1) = this->x.topLeftCorner(4, 1).normalized();
 }
 
-void StateEstimator::reset()
+void EKFGyroAcc::reset()
 {
     this->reset(Eigen::Quaternion<float>::Identity());
 }
 
-void StateEstimator::reset(Eigen::Quaternionf att)
+void EKFGyroAcc::reset(Eigen::Quaternionf att)
 {
     this->x.setZero();
     this->x(0, 0) = att.w();
@@ -67,7 +67,7 @@ void StateEstimator::reset(Eigen::Quaternionf att)
     this->x(3, 0) = att.z();
 }
 
-Eigen::Quaternionf StateEstimator::get_attitude()
+Eigen::Quaternionf EKFGyroAcc::get_attitude()
 {
     return Eigen::Quaternionf(this->x(0, 0), this->x(1, 0), this->x(2, 0), this->x(3, 0));
 }

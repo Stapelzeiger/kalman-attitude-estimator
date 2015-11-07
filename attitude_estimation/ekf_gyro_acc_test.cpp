@@ -2,29 +2,29 @@
 #include "CppUTest/TestHarness.h" // this include must be last
 
 
-TEST_GROUP(StateEstimator)
+TEST_GROUP(EKFGyroAccTestGroup)
 {
-    StateEstimator s;
+    EKFGyroAcc s;
     void setup(void)
     {
-        s = StateEstimator();
+        s = EKFGyroAcc();
     }
 };
 
-TEST(StateEstimator, UpdateIMU)
+TEST(EKFGyroAccTestGroup, UpdateIMU)
 {
     float gyro[3] = {0, 0, 0};
     float acc[3] = {0, 0 ,0};
     s.update_imu(gyro, acc, 0.1);
 }
 
-TEST(StateEstimator, GetAttitude)
+TEST(EKFGyroAccTestGroup, GetAttitude)
 {
     CHECK(s.get_attitude().isApprox(Eigen::Quaternionf(1, 0, 0, 0)));
 }
 
 
-TEST(StateEstimator, NumericalMatlabExample)
+TEST(EKFGyroAccTestGroup, NumericalMatlabExample)
 {
     s.Q.setIdentity();
     s.R.setIdentity();

@@ -1,19 +1,19 @@
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
-namespace _simple_ekf {
+namespace _gyro_acc {
     #include "code_gen/ekf_gyro_acc.h"
 }
 
-class StateEstimator
+class EKFGyroAcc
 {
 public:
-    Eigen::Matrix<float, _simple_ekf::STATE_DIM, 1> x;
-    Eigen::Matrix<float, _simple_ekf::STATE_DIM, _simple_ekf::STATE_DIM> P;
-    Eigen::Matrix<float, _simple_ekf::STATE_DIM, _simple_ekf::STATE_DIM> Q;
-    Eigen::Matrix<float, _simple_ekf::MEASURE_DIM, _simple_ekf::MEASURE_DIM> R;
+    Eigen::Matrix<float, _gyro_acc::STATE_DIM, 1> x;
+    Eigen::Matrix<float, _gyro_acc::STATE_DIM, _gyro_acc::STATE_DIM> P;
+    Eigen::Matrix<float, _gyro_acc::STATE_DIM, _gyro_acc::STATE_DIM> Q;
+    Eigen::Matrix<float, _gyro_acc::MEASURE_DIM, _gyro_acc::MEASURE_DIM> R;
 
-    StateEstimator();
-    ~StateEstimator();
+    EKFGyroAcc();
+    ~EKFGyroAcc();
 
     void reset();
     void reset(Eigen::Quaternionf att);

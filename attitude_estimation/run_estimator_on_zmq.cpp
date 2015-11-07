@@ -14,7 +14,7 @@ int main(int argc, char const *argv[])
 
     subscriber.setsockopt(ZMQ_SUBSCRIBE, NULL, 0);
 
-    StateEstimator kalman;
+    EKFGyroAcc kalman;
     sleep(3);
     float prev_timestamp = 0;
     int i = 1000;
