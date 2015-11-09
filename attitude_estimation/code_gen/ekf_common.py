@@ -118,6 +118,7 @@ def ekf_generate_c_code(f, F, h, H, x, u, f_additional_in=[], h_additional_in=[]
 
     c_code_head = '// This file has been automatically generated\n'
     c_code_head += '// DO NOT EDIT!\n\n'
+    c_code_head += '#include <math.h>\n\n'
     c_code_head += 'const int STATE_DIM = {};\n'.format(len(x))
     c_code_head += 'const int CONTROL_DIM = {};\n'.format(len(u))
     c_code_head += 'const int MEASURE_DIM = {};\n'.format(len(h))

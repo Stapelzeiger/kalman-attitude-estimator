@@ -1,6 +1,8 @@
 // This file has been automatically generated
 // DO NOT EDIT!
 
+#include <math.h>
+
 const int STATE_DIM = 4;
 const int CONTROL_DIM = 3;
 const int MEASURE_DIM = 3;
