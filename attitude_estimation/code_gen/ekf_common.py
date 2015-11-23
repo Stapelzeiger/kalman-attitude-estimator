@@ -2,26 +2,9 @@ import sympy as sp
 import sympy.utilities.codegen as cg
 import re
 
-def rotate_by_quaternion(v, q):
-    qv = sp.Matrix([0]).col_join(v)
-    qv_rot = quatmult(quatmult(q, qv), quatconj(q))
-    qv_rot.row_del(0)
-    return qv_rot
 
-
-def quatconj(q):
-    qc = sp.Matrix([q[0], -q[1], -q[2], -q[3]])
-    return qc
-
-
-def quatmult(q1, q2):
-    q = q1.copy()
-    q[0] = q1[0]*q2[0] - q1[1]*q2[1] - q1[2]*q2[2] - q1[3]*q2[3]
-    q[1] = q1[0]*q2[1] + q1[1]*q2[0] + q1[2]*q2[3] - q1[3]*q2[2]
-    q[2] = q1[0]*q2[2] - q1[1]*q2[3] + q1[2]*q2[0] + q1[3]*q2[1]
-    q[3] = q1[0]*q2[3] + q1[1]*q2[2] - q1[2]*q2[1] + q1[3]*q2[0]
-    return q
-
+def display(name, val):
+    print(name, val)
 
 def clean_c_code(c_code, use_single_float=True):
     def convert_to_float(c_code):
