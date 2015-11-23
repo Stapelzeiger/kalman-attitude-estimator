@@ -26,6 +26,15 @@ def clean_c_code(c_code, use_single_float=True, static_inline=True):
     return c_code
 
 
+def unused_param_warn_suppr(code, parameters):
+    out_code = []
+    for line in code.split('\n'):
+        out_code.append(line)
+        if line.startswith('void'):
+            out_code += ['    (void){};'.format(p) for p in parameters]
+    return '\n'.join(out_code)
+
+
 def generate_c_func(name, expr, in_args, column_major_storage=True, **kwargs):
     """ generates C function code for a sympy exrpession
         name is the name of the function
@@ -66,7 +75,10 @@ def generate_c_func(name, expr, in_args, column_major_storage=True, **kwargs):
     code_gen = cg.get_code_generator("C", "projectname")
     routines = [cg.Routine(name, arg_list, no_return_val, no_local_vars)]
     [(c_name, c_code), (h_name, c_header)] = code_gen.write(routines, "prefix", header=False)
+
+    c_code = unused_param_warn_suppr(c_code, [argname for argname, _sym in in_args])
     c_code = clean_c_code(c_code, **kwargs)
+
     return c_code
 
 
