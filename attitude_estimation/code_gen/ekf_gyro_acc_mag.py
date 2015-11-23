@@ -105,12 +105,7 @@ display('measurement_transform', measurement_transform)
 
 
 if __name__ == "__main__":
-    filename = 'ekf_gyro_mag.h'
-
-    c_code = '// This file has been automatically generated\n'
-    c_code += '// DO NOT EDIT!\n\n'
-    c_code += '#include <math.h>\n\n'
-    c_code += 'const int STATE_DIM = {};\n'.format(len(x))
+    c_code = 'const int STATE_DIM = {};\n'.format(len(x))
     c_code += 'const int CONTROL_DIM = {};\n'.format(len(u))
     c_code += 'const int MEASURE_DIM = {};\n'.format(len(h_mag))
     c_code += '\n\n'
@@ -122,7 +117,4 @@ if __name__ == "__main__":
     c_code += c_code_gen.generate_c_func('meas_transf', measurement_transform, [('attitude', attitude), ('z', z)])
     c_code += c_code_gen.generate_c_func('z_inertial', z_inertial, [('attitude', attitude), ('z', z)])
 
-    logging.info('writing to output file ' + filename)
-    c_file = open(filename, 'w+')
-    c_file.write(c_code)
-    c_file.close()
+    c_code_gen.write_file('ekf_gyro_mag.h', c_code)

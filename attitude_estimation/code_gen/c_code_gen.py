@@ -1,7 +1,7 @@
 import sympy as sp
 import sympy.utilities.codegen as cg
 import sympy_util
-
+import logging
 
 def clean_c_code(c_code, use_single_float=True, static_inline=True):
     def convert_to_float(c_code):
@@ -68,3 +68,23 @@ def generate_c_func(name, expr, in_args, column_major_storage=True, **kwargs):
     [(c_name, c_code), (h_name, c_header)] = code_gen.write(routines, "prefix", header=False)
     c_code = clean_c_code(c_code, **kwargs)
     return c_code
+
+
+def write_file(filename, code, with_header=True):
+    if with_header:
+        header = '// This file has been automatically generated\n'
+        header += '// DO NOT EDIT!\n\n'
+        header += '#include <math.h>\n\n'
+        code = header + code
+
+    try:
+        code_changed = (open(filename, "r").read() != code)
+    except IOError: # file doesn't exist
+        code_changed = True
+
+    if code_changed:
+        logging.info('writing to output file ' + filename)
+        with open(filename, "w") as output:
+            output.write(code)
+    else:
+        logging.debug("code for file {} didn't change, not writing file".format(filename))
