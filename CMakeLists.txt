@@ -15,8 +15,6 @@ file(GLOB_RECURSE src src/*.cpp)
 add_executable(
     tests
     ${src}
-    attitude_estimation/ekf_gyro_acc.cpp
-    attitude_estimation/ekf_gyro_acc_test.cpp
     )
 
 target_link_libraries(
@@ -26,16 +24,3 @@ target_link_libraries(
     )
 
 
-add_executable(
-    run_ekf_zmq
-    attitude_estimation/run_estimator_on_zmq.cpp
-    attitude_estimation/ekf_gyro_acc.cpp
-    attitude_estimation/ekf_gyro_acc_mag.cpp
-    lib/cmp/cmp.c
-    lib/cmp_mem_access/cmp_mem_access.c
-    )
-
-target_link_libraries(
-    run_ekf_zmq
-    zmq
-    )
