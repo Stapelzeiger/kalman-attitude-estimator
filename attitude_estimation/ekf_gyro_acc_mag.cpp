@@ -60,7 +60,7 @@ void EKFGyroAccMag::update_imu(const float *gyro, const float *acc, float delta_
 void EKFGyroAccMag::update_mag(const float *mag)
 {
     float mag_heading;
-    ekf_mag::meas_transf(this->x[0], this->x[1], this->x[2], this->x[3], mag[0], mag[1], mag[2], &mag_heading);
+    ekf_mag::meas_transf(this->x.topLeftCorner(4, 1).data(), mag, &mag_heading);
 
     Eigen::Map<const Eigen::Matrix<float, 1, 1>> z(&mag_heading);
 
