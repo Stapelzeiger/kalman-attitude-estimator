@@ -1,26 +1,35 @@
+"""
+Extended Kalman Filter derivations for a simple attitude estimation model
 
-# coding: utf-8
+ estimates:
+ - attitude (quaternion)
 
-# ## Extended Kalman Filter derivations for a simple attitude estimation model
-#
-# estimates:
-# - attitude (quaternion)
-#
-# based on:
-# - gyro
-# - accelerometer ("up" sensor)
-# - magnetometer ("north" sensor)
-#
-# model:
-# - direct gyro "control" input for state propagation
-# - no acceleration -> only gravity which is used to compensate for gyro drift (measurement input)
-# - magnetometer projected on horizontal plane points north (direction x+)
+ based on:
+ - gyro
+ - accelerometer ("up" sensor)
+ - magnetometer ("north" sensor)
 
+ model:
+ - direct gyro "control" input for state propagation
+ - no acceleration -> only gravity which is used to compensate for gyro drift (measurement input)
+ - magnetometer projected on horizontal plane points north (direction x+)
+"""
 
-from ekf_common import *
+import logging
 import quaternion
+import c_code_gen
 import sympy as sp
+import argparse
 
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-l', '--loglevel', default='WARNING')
+    args = parser.parse_args()
+    logging.basicConfig(level=args.loglevel.upper())
+
+
+def display(name, val):
+    logging.debug("{} = {}".format(name, val))
 
 
 delta_t = sp.symbols("Delta_t", real=True)
@@ -63,21 +72,17 @@ display("f", f)
 display("F", F)
 
 
+# acc measurement
+
 expected_meas = sp.Matrix([0, 0, 9.81])
-h = quaternion.rotate_vect(expected_meas, quaternion.conj(attitude))
-H = h.jacobian(x)
+h_acc = quaternion.rotate_vect(expected_meas, quaternion.conj(attitude))
+H_acc = h_acc.jacobian(x)
 
-display("h", h)
-display("H", H)
-
-
-
-import imp, ekf_common
-imp.reload(ekf_common)
-c_code = ekf_common.ekf_generate_c_code(f, F, h, H, x, u, [delta_t])
-#print(c_code)
+display("h_acc", h_acc)
+display("H_acc", H_acc)
 
 
+# mag measurement
 
 north = sp.Matrix([1, 0, 0])
 r0, r1, r2, r3 = sp.symbols("r0 r1 r2 r3", real=True)
@@ -86,8 +91,7 @@ north_vect_in_ref = quaternion.rotate_vect(north, quaternion.mult(ref, quaternio
 h_mag = sp.Matrix([sp.atan2(north_vect_in_ref[1], north_vect_in_ref[0])])
 H_mag = h_mag.jacobian(x)
 ref_subs = list(zip([r0, r1, r2, r3], [q0, q1, q2, q3])) + [(q0**2 + q1**2 + q2**2 + q3**2, 1)]
-#display("h_mag", h_mag)
-#display("H_mag", H_mag)
+
 h_mag = h_mag.subs(ref_subs)
 H_mag = H_mag.subs(ref_subs)
 display("h_mag", h_mag)
@@ -98,17 +102,27 @@ z = sp.Matrix([[z0], [z1], [z2]])
 z_inertial = quaternion.rotate_vect(z, attitude)
 measurement_transform = sp.Matrix([sp.atan2(z_inertial[1], z_inertial[0])])
 display('measurement_transform', measurement_transform)
-measurement_transform_c_code = ekf_common.generate_c_code('meas_transf', measurement_transform)
-z_inertial_c_code = ekf_common.generate_c_code('z_inertial', z_inertial)
 
 
+if __name__ == "__main__":
+    filename = 'ekf_gyro_mag.h'
 
-c_code = ekf_generate_c_code(f, F, h_mag, H_mag, x, u, [delta_t]) + measurement_transform_c_code + z_inertial_c_code
-print(c_code)
+    c_code = '// This file has been automatically generated\n'
+    c_code += '// DO NOT EDIT!\n\n'
+    c_code += '#include <math.h>\n\n'
+    c_code += 'const int STATE_DIM = {};\n'.format(len(x))
+    c_code += 'const int CONTROL_DIM = {};\n'.format(len(u))
+    c_code += 'const int MEASURE_DIM = {};\n'.format(len(h_mag))
+    c_code += '\n\n'
 
+    c_code += c_code_gen.generate_c_func('f', f, [('x', x), ('u', u), ('delta_t', delta_t)])
+    c_code += c_code_gen.generate_c_func('F', F, [('x', x), ('u', u), ('delta_t', delta_t)])
+    c_code += c_code_gen.generate_c_func('h', h_mag, [('x', x)])
+    c_code += c_code_gen.generate_c_func('H', H_mag, [('x', x)])
+    c_code += c_code_gen.generate_c_func('meas_transf', measurement_transform, [('attitude', attitude), ('z', z)])
+    c_code += c_code_gen.generate_c_func('z_inertial', z_inertial, [('attitude', attitude), ('z', z)])
 
-
-c_file = open('ekf_gyro_mag.h', 'w+')
-c_file.write(c_code)
-c_file.close()
-
+    logging.info('writing to output file ' + filename)
+    c_file = open(filename, 'w+')
+    c_file.write(c_code)
+    c_file.close()
