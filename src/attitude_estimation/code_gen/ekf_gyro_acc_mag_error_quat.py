@@ -40,6 +40,7 @@ delta_t = sp.symbols("Delta_t", real=True)
 # Gyro Model
 gx, gy, gz = sp.symbols("g_x g_y g_z", real=True)
 gyro = sp.Matrix([gx, gy, gz])
+u = gyro
 
 gnx, gny, gnz = sp.symbols("gn_x gn_y gn_z", real=True)
 gyro_noise = sp.Matrix([gnx, gny, gnz])
@@ -74,29 +75,29 @@ delta_q = 1/sp.sqrt(4 + (a.transpose()*a)[0]) * sp.Matrix([2]).col_join(a)
 delta_q_r = delta_q[0]
 delta_q_v = sp.Matrix(delta_q[1:])
 
-delta_q_dot = 1/2 * quaternion.mult(delta_q, omega_quat) -1/2 * quaternion.mult(omega_hat_quat, delta_q);
+delta_q_dot = 1/2 * quaternion.mult(delta_q, omega_quat) - 1/2 * quaternion.mult(omega_hat_quat, delta_q)
 delta_q_dot_r = delta_q_dot[0]
 delta_q_dot_v = sp.Matrix(delta_q_dot[1:])
-a_dot = 2*(delta_q_dot_v/delta_q_r - delta_q_v*delta_q_dot_r/delta_q_r**2);
+a_dot = 2*(delta_q_dot_v/delta_q_r - delta_q_v*delta_q_dot_r/delta_q_r**2)
 gyro_bias_dot = sp.zeros(3, 1) # constant gyro bias model
 
 
 x = a.col_join(gyro_bias)
-#display("x", x)
+display("x", x)
 
 x_dot = a_dot.col_join(gyro_bias_dot)
 x_dot = sp.simplify(x_dot)
-#display("x_dot", x_dot)
+display("x_dot", x_dot)
 
 
-
-f = x + x_dot * delta_t
+f = x_dot
 F = x_dot.jacobian(x)
 # taking the expectation
 substab = matrix_subs(gyro_bias, gyro_bias_hat)
 substab += matrix_subs(gyro_noise, sp.zeros(3))
 substab += matrix_subs(a, sp.zeros(3))
 F = sp.simplify(F.subs(substab))
+f = sp.simplify(f.subs(substab))
 phi = sp.eye(len(x)) + F*delta_t
 
 
@@ -104,22 +105,83 @@ display("f", f)
 display("F", F)
 display("phi", phi)
 
-
-
-def meas_ref_q_from_v(v):
-    v_n = v.normalize()
-
+# this must rotate the x vector to the expected measurement vector
 qmr0, qmr1, qmr2, qmr3 = sp.symbols('qmr0 qmr1 qmr2 qmr3')
 q_meas_ref = sp.Matrix([qmr0, qmr1, qmr2, qmr3])
 
+
 def measurement_from_vect(v_body):
-    #v_body = v_body.normalize()
     v_rot = quaternion.rotate_vect(v_body, quaternion.mult(quaternion.conj(q_meas_ref), q_ref))
     return sp.Matrix([v_rot[1], v_rot[2]])
 
-vg_body = sp.simplify(quaternion.rotate_vect(sp.Matrix([0, 0, 1]), quaternion.conj(quaternion.mult(q_ref, delta_q))))
-tmp =  measurement_from_vect(vg_body).subs(matrix_subs(a, sp.Matrix([0, 0, 0])) + matrix_subs(q_meas_ref, sp.Matrix([sp.cos(sp.pi/4), 0, sp.sin(sp.pi/4), 0])))
-display("vg_body", sp.simplify(tmp))
+vg_inertial = sp.Matrix([0, 0, 1])
+attitude = quaternion.mult(q_ref, delta_q)
+vg_body = quaternion.rotate_vect(vg_inertial, quaternion.conj(attitude))
+vg_body = sp.simplify(vg_body)
+display("vg_body", vg_body)
+
+h_g = measurement_from_vect(vg_body)
+H_g = h_g.jacobian(x)
+H_g = H_g.subs(matrix_subs(a, sp.Matrix([0, 0, 0])))
+H_g = sp.simplify(H_g)
+display('h_g', h_g)
+display('H_g', H_g)
+
+
+apply_x_to_ref = quaternion.mult(q_ref, delta_q)
+display('apply_x_to_ref', apply_x_to_ref)
+
+rate_quat = omega_hat_quat.subs(matrix_subs(gyro_bias_hat, gyro_bias))
+display('rate_quat', rate_quat)
+q_ref_dot = 1/2*quaternion.mult(q_ref, rate_quat)
+display('q_ref_dot', q_ref_dot)
+ref_q_propagate = q_ref + q_ref_dot * delta_t
+display('ref_q_propagate', ref_q_propagate)
+
+if __name__ == "__main__":
+    c_code = 'const int STATE_DIM = {};\n'.format(len(x))
+    c_code += 'const int CONTROL_DIM = {};\n'.format(len(u))
+    c_code += 'const int MEASURE_DIM = {};\n'.format(len(h_g))
+    c_code += '\n\n'
+
+    c_code += c_code_gen.generate_c_func('f',
+                                         f.subs(matrix_subs(gyro_bias_hat, gyro_bias)),
+                                         [('x', x),
+                                          ('u', u),
+                                          ('delta_t', delta_t)])
+    c_code += c_code_gen.generate_c_func('F',
+                                         phi.subs(matrix_subs(gyro_bias_hat, gyro_bias)),
+                                         [('x', x),
+                                          ('u', u),
+                                          ('delta_t', delta_t)])
+    c_code += c_code_gen.generate_c_func('h', h_g, [('x', x),
+                                                    ('att_ref_q', q_ref),
+                                                    ('meas_ref_q', q_meas_ref)])
+    c_code += c_code_gen.generate_c_func('H', H_g, [('x', x),
+                                                    ('att_ref_q', q_ref),
+                                                    ('meas_ref_q', q_meas_ref)])
+    z0, z1, z2 = sp.symbols("z0 z1 z2", real=True)
+    z = sp.Matrix([[z0], [z1], [z2]])
+    c_code += c_code_gen.generate_c_func('measurement_from_vect',
+                                         measurement_from_vect(z),
+                                         [('z', z),
+                                          ('att_ref_q', q_ref),
+                                          ('meas_ref_q', q_meas_ref)])
+
+    c_code += c_code_gen.generate_c_func('apply_x_to_ref',
+                                         apply_x_to_ref,
+                                         [('q_ref', q_ref),
+                                          ('x', x)])
+
+    c_code += c_code_gen.generate_c_func('ref_q_propagate',
+                                         ref_q_propagate,
+                                         [('q_ref', q_ref),
+                                          ('gyro', gyro),
+                                          ('x', x),
+                                          ('delta_t', delta_t)])
+
+
+    c_code_gen.write_file('ekf_gyro_acc_mag_error_quat.h', c_code)
 
 
 #expected_meas = sp.Matrix([0, 0, 9.81])
