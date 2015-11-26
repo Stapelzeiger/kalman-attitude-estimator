@@ -23,6 +23,7 @@ void EKFGyroAccMagErrQuat::update_imu(const float *gyro, const float *acc, float
 {
     Eigen::Map<const Eigen::Vector3f> u(gyro);
     Eigen::Map<const Eigen::Vector3f> acc_v(acc);
+    // rotates inertial x to expected measurement (90deg pitch up)
     const float z_meas_ref[4] = {0.7071067812, 0, 0.7071067812, 0};
     Eigen::Matrix<float, 2, 1> z;
     code_gen::measurement_from_vect(acc_v.normalized().data(), this->q_ref.data(), z_meas_ref, z.data());
@@ -36,6 +37,7 @@ void EKFGyroAccMagErrQuat::update_imu(const float *gyro, const float *acc, float
     // reference propagation
     q_ref_cpy = this->q_ref;
     code_gen::ref_q_propagate(q_ref_cpy.data(), gyro, this->x.data(), delta_t, this->q_ref.data());
+    // todo renormalize?
 
     auto f = [delta_t](Eigen::Matrix<float, code_gen::STATE_DIM, 1> &state,
                 const Eigen::Matrix<float, code_gen::CONTROL_DIM, 1> &control)
@@ -61,9 +63,7 @@ void EKFGyroAccMagErrQuat::update_imu(const float *gyro, const float *acc, float
         };
 
     ekf_predict<float, code_gen::STATE_DIM, code_gen::CONTROL_DIM>(this->x, this->P, u, this->Q, f, F);
-    // this->x.topLeftCorner(4, 1) = this->x.topLeftCorner(4, 1).normalized();
     ekf_measure<float, code_gen::STATE_DIM, code_gen::MEASURE_DIM>(this->x, this->P, z, this->R, h, H);
-    // this->x.topLeftCorner(4, 1) = this->x.topLeftCorner(4, 1).normalized();
 }
 
 void EKFGyroAccMagErrQuat::reset()

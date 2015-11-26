@@ -114,7 +114,7 @@ def measurement_from_vect(v_body):
     v_rot = quaternion.rotate_vect(v_body, quaternion.mult(quaternion.conj(q_meas_ref), q_ref))
     return sp.Matrix([v_rot[1], v_rot[2]])
 
-vg_inertial = sp.Matrix([0, 0, 1])
+vg_inertial = sp.Matrix([0, 0, 1]) # todo use NED
 attitude = quaternion.mult(q_ref, delta_q)
 vg_body = quaternion.rotate_vect(vg_inertial, quaternion.conj(attitude))
 vg_body = sp.simplify(vg_body)
