@@ -42,6 +42,8 @@ void EKFGyroAccMagErrQuat::update_imu(const float *gyro, const float *acc, float
     auto f = [delta_t](Eigen::Matrix<float, code_gen::STATE_DIM, 1> &state,
                 const Eigen::Matrix<float, code_gen::CONTROL_DIM, 1> &control)
         {
+            (void)state;
+            (void)control;
             // Eigen::Matrix<float, code_gen::STATE_DIM, 1> state_cpy = state;
             // code_gen::f(state_cpy.data(), control.data(), delta_t, state.data());
         };
