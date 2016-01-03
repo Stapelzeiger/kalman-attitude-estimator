@@ -21,51 +21,34 @@ void MEKFGyroAccMag::update_imu(const float *gyro, const float *acc, float delta
     Eigen::Map<const Eigen::Vector3f> gyro_vec(gyro);
     Eigen::Map<const Eigen::Vector3f> acc_vec(acc);
 
-    // // rotates inertial x to expected measurement (90deg pitch up)
-    // const float z_meas_ref[4] = {0.7071067812, 0, 0.7071067812, 0};
-    // Eigen::Matrix<float, 2, 1> z;
-    // code_gen::measurement_from_vect(acc_v.normalized().data(), this->q_ref.data(), z_meas_ref, z.data());
+    Eigen::Vector3f omega_ref = gyro_vec - this->x.block(3, 0, 3, 1); // gyro - bias
 
-    // // error quaternion transfer
+    // reference propagation
+    Eigen::Quaternionf gyro_q(0, omega_ref[0], omega_ref[1], omega_ref[2]);
+    float angle = gyro_vec.norm() * delta_t;
+    Eigen::Vector3f axis = gyro_vec.normalized();
+    this->ref_attitude = this->ref_attitude * Eigen::Quaternionf(Eigen::AngleAxisf(angle, axis));
 
+    // exp x_dot = 0, so x is constant
 
-    // // reference propagation
-    // q_ref_cpy = this->q_ref;
-    // code_gen::ref_q_propagate(q_ref_cpy.data(), gyro, this->x.data(), delta_t, this->q_ref.data());
-    // // todo renormalize?
+    Eigen::Matrix<float, STATE_DIM, STATE_DIM> F;
+    F.setZero();
+    F.block(0, 0, 3, 3) = -cross_product_matrix(omega_ref); // jacobian(a_dot, a)
+    F.block(0, 3, 3, 3) = -Eigen::Matrix3f::Identity(); // jacobian(a_dot, b)
+    Eigen::Matrix<float, STATE_DIM, STATE_DIM> Phi = Eigen::Matrix<float, STATE_DIM, STATE_DIM>::Identity() + F * delta_t;
 
-    // auto f = [delta_t](Eigen::Matrix<float, code_gen::STATE_DIM, 1> &state,
-    //             const Eigen::Matrix<float, code_gen::CONTROL_DIM, 1> &control)
-    //     {
-    //         (void)state;
-    //         (void)control;
-    //         // Eigen::Matrix<float, code_gen::STATE_DIM, 1> state_cpy = state;
-    //         // code_gen::f(state_cpy.data(), control.data(), delta_t, state.data());
-    //     };
-    // auto F = [delta_t](const Eigen::Matrix<float, code_gen::STATE_DIM, 1> &state,
-    //             const Eigen::Matrix<float, code_gen::CONTROL_DIM, 1> &control,
-    //             Eigen::Matrix<float, code_gen::STATE_DIM, code_gen::STATE_DIM> &out_jacobian)
-    //     {
-    //         code_gen::F(state.data(), control.data(), delta_t, out_jacobian.data());
-    //     };
-    // auto h = [&, z_meas_ref](const Eigen::Matrix<float, code_gen::STATE_DIM, 1> &state,
-    //             Eigen::Matrix<float, code_gen::MEASURE_DIM, 1> &pred)
-    //     {
-    //         code_gen::h(state.data(), this->q_ref.data(), z_meas_ref, pred.data());
-    //     };
-    // auto H = [&, z_meas_ref](const Eigen::Matrix<float, code_gen::STATE_DIM, 1> &state,
-    //             Eigen::Matrix<float, code_gen::MEASURE_DIM, code_gen::STATE_DIM> &out_jacobian)
-    //     {
-    //         code_gen::H(state.data(), this->q_ref.data(), z_meas_ref, out_jacobian.data());
-    //     };
+    ekf_predict<float, STATE_DIM>(this->P, this->Q, Phi);
 
-    // ekf_predict<float, code_gen::STATE_DIM, code_gen::CONTROL_DIM>(this->x, this->P, u, this->Q, f, F);
-    // ekf_measure<float, code_gen::STATE_DIM, code_gen::MEASURE_DIM>(this->x, this->P, z, this->R, h, H);
+    this->measure_vect(Eigen::Vector3f(0, 0, -1), acc_vec, this->R_grav);
+
+    // error quaternion transfer
+    this->apply_att_err_to_ref();
 }
 
 void MEKFGyroAccMag::update_mag(const float *mag)
 {
-
+    (void)mag;
+    // todo we need a magnetic field model
 }
 
 void MEKFGyroAccMag::reset()
@@ -81,7 +64,7 @@ void MEKFGyroAccMag::reset(Eigen::Quaternionf att)
     this->P *= 0.001;
 }
 
-Eigen::Quaternionf MEKFGyroAccMag::get_attitude()
+Eigen::Quaternionf MEKFGyroAccMag::get_attitude() const
 {
     return this->ref_attitude;
 }
@@ -101,7 +84,7 @@ Eigen::Quaternionf MEKFGyroAccMag::vect_measurement_basis(Eigen::Vector3f expect
     return transformation;
 }
 
-Eigen::Matrix3f MEKFGyroAccMag::vect_measurement_basis_b_frame(Eigen::Vector3f expected)
+Eigen::Matrix3f MEKFGyroAccMag::vect_measurement_basis_b_frame(Eigen::Vector3f expected) const
 {
     Eigen::Quaternionf I_to_m = MEKFGyroAccMag::vect_measurement_basis(expected);
     return (I_to_m * this->ref_attitude).toRotationMatrix();
@@ -112,7 +95,7 @@ Eigen::Matrix<float, 2, 1> MEKFGyroAccMag::vect_measurement_transform(Eigen::Mat
     Eigen::Matrix<float, 2, 3>v_m_to_z;
     v_m_to_z << 0, 1, 0,
                 0, 0, 1;
-    return v_m_to_z * measurement_basis * measurement_b;
+    return v_m_to_z * measurement_basis * measurement_b.normalized();
 }
 
 Eigen::Matrix<float, 2, 3> MEKFGyroAccMag::vect_measurement_jacobian(Eigen::Matrix3f measurement_basis, Eigen::Vector3f expected_b)
@@ -123,14 +106,21 @@ Eigen::Matrix<float, 2, 3> MEKFGyroAccMag::vect_measurement_jacobian(Eigen::Matr
     return v_m_to_z * measurement_basis * cross_product_matrix(expected_b.normalized());
 }
 
-void MEKFGyroAccMag::measure_vect(Eigen::Vector3f expected, Eigen::Vector3f measured)
+void MEKFGyroAccMag::measure_vect(Eigen::Vector3f expected, Eigen::Vector3f measured, Eigen::Matrix2f R)
 {
     Eigen::Matrix3f b_to_m = this->vect_measurement_basis_b_frame(expected);
     Eigen::Vector3f expected_b = this->ref_attitude.conjugate()._transformVector(expected);
     Eigen::Vector2f z = vect_measurement_transform(b_to_m, measured);
-    Eigen::Matrix<float, 2, 3> Ha = vect_measurement_jacobian(b_to_m, expected_b);
+    Eigen::Matrix<float, VECT_MEASURE_DIM, 3> Ha = vect_measurement_jacobian(b_to_m, expected_b);
+    Eigen::Matrix<float, VECT_MEASURE_DIM, STATE_DIM> H;
+    H.setZero();
+    H.block(0, 0, VECT_MEASURE_DIM, 3) = Ha; // measurement only depends on a
 
-
-    
+    ekf_measure<float, STATE_DIM, VECT_MEASURE_DIM>(this->x,
+                                                    this->P,
+                                                    z,
+                                                    R,
+                                                    Eigen::Vector2f::Zero(),
+                                                    H);
 }
 

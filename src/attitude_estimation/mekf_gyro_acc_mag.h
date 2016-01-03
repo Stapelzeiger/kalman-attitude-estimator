@@ -26,19 +26,19 @@ public:
     void reset(Eigen::Quaternionf att);
     void update_imu(const float *gyro, const float *acc, float delta_t);
     void update_mag(const float *mag);
-    Eigen::Quaternionf get_attitude();
+    Eigen::Quaternionf get_attitude() const;
 
     void apply_att_err_to_ref(void);
 
     /** Compute the transformation from inertial to measurement frame */
     static Eigen::Quaternionf vect_measurement_basis(Eigen::Vector3f expected);
     /** Compute the transformation from body to measurement from */
-    Eigen::Matrix3f vect_measurement_basis_b_frame(Eigen::Vector3f expected);
+    Eigen::Matrix3f vect_measurement_basis_b_frame(Eigen::Vector3f expected) const;
     /** Compute the measurement z from a measureed vector in the body frame */
     static Eigen::Matrix<float, 2, 1> vect_measurement_transform(Eigen::Matrix3f measurement_basis, Eigen::Vector3f measurement);
     /** Compute the measurement sensitivity matrix with respect to attitude error a */
     static Eigen::Matrix<float, 2, 3> vect_measurement_jacobian(Eigen::Matrix3f measurement_basis, Eigen::Vector3f expected_b);
-    void measure_vect(Eigen::Vector3f expected, Eigen::Vector3f measured);
+    void measure_vect(Eigen::Vector3f expected, Eigen::Vector3f measured, Eigen::Matrix2f R);
 };
 
 #endif /* MEKF_GYRO_ACC_MAG_H */
