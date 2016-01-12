@@ -24,9 +24,8 @@ void MEKFGyroAccMag::update_imu(const float *gyro, const float *acc, float delta
     Eigen::Vector3f omega_ref = gyro_vec - this->x.block(3, 0, 3, 1); // gyro - bias
 
     // reference propagation
-    Eigen::Quaternionf gyro_q(0, omega_ref[0], omega_ref[1], omega_ref[2]);
-    float angle = gyro_vec.norm() * delta_t;
-    Eigen::Vector3f axis = gyro_vec.normalized();
+    float angle = omega_ref.norm() * delta_t;
+    Eigen::Vector3f axis = omega_ref.normalized();
     this->ref_attitude = this->ref_attitude * Eigen::Quaternionf(Eigen::AngleAxisf(angle, axis));
 
     // exp x_dot = 0, so x is constant
