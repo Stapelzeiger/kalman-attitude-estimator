@@ -71,9 +71,10 @@ def generate_c_func(name, expr, in_args, column_major_storage=True, **kwargs):
 
     no_return_val = []
     no_local_vars = []
+    no_global_vars = []
 
     code_gen = cg.get_code_generator("C", "projectname")
-    routines = [cg.Routine(name, arg_list, no_return_val, no_local_vars)]
+    routines = [cg.Routine(name, arg_list, no_return_val, no_local_vars, no_global_vars)]
     [(c_name, c_code), (h_name, c_header)] = code_gen.write(routines, "prefix", header=False)
 
     c_code = unused_param_warn_suppr(c_code, [argname for argname, _sym in in_args])
